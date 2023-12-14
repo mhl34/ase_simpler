@@ -27,6 +27,7 @@ class ase_simpler():
         parser.add_argument("-v", "--vcf", dest="vcf", help="get het site information using the vcf")
         parser.add_argument("-p", "--peaks", dest="peaks", help="get peaks with a start and end index")
         parser.add_argument("-o", "--outputDirectory", dest="outDir", help="output directory for pVals dictionary (outputs csv)")
+        parser.add_argument("-ch", "--chromosome", dest="chrom", help="chromosome number")
         args = parser.parse_args()
         self.inputBam = args.inputBam
         self.hetSites = args.hetSites
@@ -34,6 +35,7 @@ class ase_simpler():
         self.vcf = args.vcf
         self.peaks = args.peaks
         self.outDir = args.outDir
+        self.chrom = args.chrom
         isExist = os.path.exists(self.outDir)
         if not isExist:
             os.makedirs(self.outDir)
@@ -89,7 +91,7 @@ class ase_simpler():
                 continue
             vcf_cut.write(line + "\n")
         vcf_cut.close()
-        vcf_df = pd.read_csv("{0}_abbrev.txt".format(filename), sep='\t', header=0)
+        vcf_df = pd.read_csv("{0}_abbrev.txt".format(filename), sep=',', header=0)
         return vcf_df
     
     # summary: get a pileup read counts dataframe
@@ -97,7 +99,7 @@ class ase_simpler():
     # returns: a DataFrame with all the read counts information
     def getReadCounts(self):
         readCounts = self.readCounts
-        df = pd.read_csv(readCounts, sep="\t")
+        df = pd.read_csv(readCounts, sep=",")
         return df
 
     # summary: get complimentary base
@@ -309,7 +311,7 @@ class ase_simpler():
         # CHR START END
         genPeaksDFStart = timeit.default_timer()
         print("Generate Peaks DF")
-        peaks = self.gen_peaks_df(self.peaks, "\t")
+        peaks = self.gen_peaks_df(self.peaks, ",")
         genPeaksDFEnd = timeit.default_timer()
         print("peaks shape: {0}".format(str(peaks.shape)))
         print("time for Generate Peaks DF: {0}".format(str(genPeaksDFEnd - genPeaksDFStart)))
@@ -360,7 +362,7 @@ class ase_simpler():
             ase_o = self.getObservedASE(ref_alt_dict[chrom])
             ase_o_dict[chrom] = ase_o
         getObservedASEEnd= timeit.default_timer()
-        pd.DataFrame.from_dict(data=ase_o_dict, orient='index').to_json("{0}/ase_o_dict.json".format(self.outDir), orient="split")
+        pd.DataFrame.from_dict(data=ase_o_dict, orient='index').to_json("{0}/ase_o_dict{1}.json".format(self.outDir,self.chrom), orient="split")
         print("ase_o_dict len: {0}".format(str(len(ase_o_dict))))
         print("time for Get Observed ASE: {0}".format(str(getObservedASEEnd - getObservedASEStart)))
         
@@ -386,7 +388,7 @@ class ase_simpler():
             ase_b = self.getSimulatedASE(ref_alt_dict[chrom], p, trials)
             ase_b_dict[chrom] = ase_b
         getSimulatedASEEnd = timeit.default_timer()
-        pd.DataFrame.from_dict(data=ase_b_dict, orient='index').to_json("{0}/ase_b_dict.json".format(self.outDir), orient="split")
+        pd.DataFrame.from_dict(data=ase_b_dict, orient='index').to_json("{0}/ase_b_dict{1}.json".format(self.outDir,self.chrom), orient="split")
         print("ase_b_dict len: {0}".format(str(len(ase_b_dict))))
         print("time for Get Simulated ASE: {0}".format(str(getSimulatedASEEnd - getSimulatedASEStart)))
 
@@ -396,7 +398,7 @@ class ase_simpler():
         pVals = {}
         for chrom in peakLocs.keys():
             pVals[chrom] = self.getPVals(trials, p, ref_alt_dict[chrom], ase_b_dict[chrom], ase_o_dict[chrom], chrom)
-        pd.DataFrame.from_dict(data=pVals, orient='index').to_json("{0}/p_values.json".format(self.outDir), orient="split")
+        pd.DataFrame.from_dict(data=pVals, orient='index').to_json("{0}/p_values{1}.json".format(self.outDir,self.chrom), orient="split")
         getPValuesEnd = timeit.default_timer()
         print("pVals shape: {0}".format(len(pVals)))
         print("time for Get P Values: {0}".format(str(getPValuesEnd - getPValuesStart)))
