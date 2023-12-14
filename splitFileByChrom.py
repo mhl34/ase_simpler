@@ -25,21 +25,21 @@ class split():
         self.outDir = args.outDir
 
     def splitReadCounts(self):
-        df = pd.read_csv(self.readCounts)
+        df = pd.read_csv(self.readCounts, sep='\t')
         chrms = df['chr'].unique()
         for chrm in chrms:
             outputDf = df.loc[df['chr'] == chrm]
             outputDf.to_csv(self.outDir + "/output/{0}.txt".format(chrm))
     
     def splitVCF(self):
-        df = pd.read_csv(self.vcf)
+        df = pd.read_csv(self.vcf, sep='\t')
         chrms = df['CHROM'].unique()
         for chrm in chrms:
             outputDf = df.loc[df['CHROM'] == chrm]
             outputDf.to_csv(self.outDir + "/vcf/{0}.txt".format(chrm))
         
     def splitPeaks(self):
-        df = pd.read_csv(self.peaks)
+        df = pd.read_csv(self.peaks, sep='\t')
         chrms = df['CHR'].unique()
         for chrm in chrms:
             outputDf = df.loc[df['CHR'] == chrm]
