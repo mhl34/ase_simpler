@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-#SBATCH -e run_pipelineB136_T1_HS_error
-#SBATCH -J run_pipelineB136_T1_HS.slurm
-#SBATCH -o run_pipelineB136_T1_HS_output
+#SBATCH -e run_pipelineB137_T1_HS_error
+#SBATCH -J run_pipeline.slurm
+#SBATCH -o run_pipelineB137_T1_HS_output
 #SBATCH --mail-type=END
 #SBATCH --mail-user=mhl34@duke.edu
 # --mem=120G
@@ -21,8 +21,8 @@ module load python
 # activate conda environment
 source activate aseSimpler
 
-# # directories
-sampleName=B136_T1_HS
+# directories
+sampleName="B137_T1_HS"
 homeDir="/data/allenlab/sz_atac/data.transfer/to_Yuncheng"
 directory="/data/allenlab/sz_atac/data.transfer/to_Yuncheng/${sampleName}"
 supDirectory="/data/allenlab/sz_atac/data.transfer/to_Yuncheng/supFiles/"
@@ -33,10 +33,10 @@ supDirectory="/data/allenlab/sz_atac/data.transfer/to_Yuncheng/supFiles/"
 
 echo "1) run_cutadapt.slurm"
 for FILE in ${directory}/*.fastq.gz; do
-      cutadapt --quality-base 33 --minimum-length 17 -q 30 -a CTGTCTCTTATACACATCT -o ${directory}/*.trim.fastq ${directory}/*.fastq.gz
-#     # input: ${directory}/${base}.fastq.gz
-#     # output: ${directory}/${base}.trim.fastq
-#     # function: cutadapt all of the fastq files
+    # cutadapt --quality-base 33 --minimum-length 17 -q 30 -a CTGTCTCTTATACACATCT -o ${directory}/*.trim.fastq ${directory}/*.fastq.gz
+    # input: ${directory}/${base}.fastq.gz
+    # output: ${directory}/${base}.trim.fastq
+    # function: cutadapt all of the fastq files
     name=${FILE%.fastq.gz}
     base=${name##*/}
     echo "${base}.trim.fastq.gz"
@@ -44,15 +44,15 @@ for FILE in ${directory}/*.fastq.gz; do
 done
 
 echo "2) run_gzip.slurm"
-for FILE in ${directory}/*.trim.fastq; do
-    # input: ${directory}/${base}.trim.fastq
-    # output: ${directory}/${base}.trim.fastq.gz
-    # function: gzip all of the trimmed reads
-    name=${FILE%.fastq.gz}
-    base=${name##*/}
-    echo "${base}.trim.fastq.gz"
-    gzip "${directory}/${base}.trim.fastq"
-done
+# for FILE in ${directory}/*.trim.fastq; do
+#     # input: ${directory}/${base}.trim.fastq
+#     # output: ${directory}/${base}.trim.fastq.gz
+#     # function: gzip all of the trimmed reads
+#    name=${FILE%.fastq.gz}
+#    base=${name##*/}
+#    echo "${base}.trim.fastq.gz"
+#    gzip "${directory}/${base}.trim.fastq"
+# done
 
 ulimit -n 100000
 
@@ -77,9 +77,9 @@ echo "#!/bin/bash" >> "${directory}/bamList.txt"
 echo -n "samtools merge ${directory}/${sampleName}merged.se.wq.bam " >> "${directory}/bamList.txt"
 
 for FILE in ${directory}/*Aligned.sortedByCoord.out.bam; do
-    # input: ${directory}/${base}Aligned.sortedByCoord.out.bam
-    # output: ${directory}/${base}.se.wq.bam
-    # function: remove the unmapped reads
+#     # input: ${directory}/${base}Aligned.sortedByCoord.out.bam
+#     # output: ${directory}/${base}.se.wq.bam
+#     # function: remove the unmapped reads
     name=${FILE%Aligned.sortedByCoord.out.bam}
     base=${name##*/}
     echo "${FILE}"
@@ -149,7 +149,7 @@ do
     allChrmVCF="${directory}/vcf/${filename}.txt"
     peaks="${directory}/peaks/${filename}.txt"
     outDir="${directory}"
-    python ase_simplerFinal.py -rc "${readCounts}" -v "${allChrmVCF}" -p "${peaks}" -o "${outDir}" -ch "${filename}"
+    python ase_simplerFinal.py -rc "${readCounts}" -v "${allChrmVCF}" -p "${peaks}" -o "${homeDir}" -ch "${filename}" -s "${sampleName}"
 done
 
 # cleanup
