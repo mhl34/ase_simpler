@@ -10,6 +10,7 @@ import argparse
 from pathlib import Path
 import timeit
 import os
+from scipy.stats import ttest_ind
 
 # written for python 2
 # python ase_simplerFinal.py -rc G1356B_S28_L004output.txt -v final288.all_chrm.vcf -p quant_peaks_1FDR_minOverlap2_300bpExt_150_TMM_no_rep_outliers.mid_peak.288.txt
@@ -28,6 +29,7 @@ class ase_simpler():
         parser.add_argument("-p", "--peaks", dest="peaks", help="get peaks with a start and end index")
         parser.add_argument("-o", "--outputDirectory", dest="outDir", help="output directory for pVals dictionary (outputs csv)")
         parser.add_argument("-ch", "--chromosome", dest="chrom", help="chromosome number")
+        parser.add_argument("-s", "--sampleName", dest="sampleName", help="name of the sample")
         args = parser.parse_args()
         self.inputBam = args.inputBam
         self.hetSites = args.hetSites
@@ -36,9 +38,16 @@ class ase_simpler():
         self.peaks = args.peaks
         self.outDir = args.outDir
         self.chrom = args.chrom
-        isExist = os.path.exists(self.outDir)
-        if not isExist:
-            os.makedirs(self.outDir)
+        self.sampleName = args.sampleName
+        # isExistPeaks = os.path.exists('{0}/peaks/'.format(self.outDir))
+        # isExistRefAlt = os.path.exists('{0}/ref_alt/'.format(self.outDir))
+        # isExistPValues = os.path.exists('{0}/p_values/'.format(self.outDir))
+        # if not isExistPeaks:
+        #     os.makedirs('{0}/peaks/'.format(self.outDir), mode=0o777)
+        # if not isExistRefAlt:
+        #     os.makedirs('{0}/ref_alt/'.format(self.outDir), mode=0o777)
+        # if not isExistPValues:
+        #     os.makedirs('{0}/p_values/'.format(self.outDir), mode=0o777)
 
     # summary: reads in read counts and locations of snps
     # parameter (inputBam): input bam file
@@ -161,9 +170,9 @@ class ase_simpler():
             if ref == 0 and alt == 0:
                 err.append([ref, alt])
                 continue
-            # if sum of counts is less than 3 then skip due to lower power
-            if ref + alt < 3:
-                continue
+            # if sum of counts is less than 3 then skip due to lower power preliminary method
+            # if ref + alt < 3:
+            #     continue
             # if the vcf_index is not a key then create a list
             if snpIndex not in ref_alt.keys():
                 ref_alt[snpIndex] = []
@@ -263,6 +272,7 @@ class ase_simpler():
         for key in ref_alt.keys():
             ase_b[key] = []
             ase_b_arr = np.zeros(trials)
+            ase_bh_arr = np.zeros(trials)
             num_snps = float(len(ref_alt[key]))
             for snp in ref_alt[key]:
                 if np.NaN in snp:
@@ -270,8 +280,22 @@ class ase_simpler():
                 all_counts = snp[0] + snp[1]
                 xbr = np.random.binomial(all_counts, p, trials)
                 xba = np.ones(trials) * float(all_counts) - xbr
+
+                # also sample from higher probability to detect power
+                xbh = np.random.binomial(all_counts, 0.9, trials)
+                # xbha = np.ones(trials) * float(all_counts) - xbh
+
                 ase_b_arr += abs(xbr - xba)/float(all_counts)
+                # ase_bh_arr += abs(xbh - xbha)/float(all_counts)
             ase_b_arr = ase_b_arr / num_snps
+            # ase_bh_arr = ase_bh_arr / num_snps
+
+            # power analysis
+            # t_stat, p_val_t_stat = ttest_ind(ase_b_arr, ase_bh_arr)
+            # power = 1 - p_val_t_stat
+
+            # if 0.8 <= power:
+            #     ase_b[key] = ase_b_arr
             ase_b[key] = ase_b_arr
         return ase_b
         
@@ -312,6 +336,7 @@ class ase_simpler():
         genPeaksDFStart = timeit.default_timer()
         print("Generate Peaks DF")
         peaks = self.gen_peaks_df(self.peaks, ",")
+        peaks.to_json("{0}/peaks/peaks_{1}_{2}.json".format(self.outDir, self.chrom, self.sampleName), orient="split")
         genPeaksDFEnd = timeit.default_timer()
         print("peaks shape: {0}".format(str(peaks.shape)))
         print("time for Generate Peaks DF: {0}".format(str(genPeaksDFEnd - genPeaksDFStart)))
@@ -344,7 +369,7 @@ class ase_simpler():
         ref_alt_df = ref_alt_df.dropna(axis=1, how='all')
         # transpose to make the columns the rows and vice versa
         ref_alt_df = ref_alt_df.T
-        ref_alt_df.to_json("{0}/ref_alt_dict.json".format(self.outDir), orient="split")
+        ref_alt_df.to_json("{0}/ref_alt/ref_alt_dict_{1}_{2}.json".format(self.outDir, self.chrom, self.sampleName), orient="split")
         filterPeakLocsEnd = timeit.default_timer()
         print("ref_alt_dict len: {0}".format(str(len(ref_alt_dict))))
         print("time for Filter All The Peak Locations: {0}".format(str(filterPeakLocsEnd - filterPeakLocsStart)))
@@ -362,7 +387,7 @@ class ase_simpler():
             ase_o = self.getObservedASE(ref_alt_dict[chrom])
             ase_o_dict[chrom] = ase_o
         getObservedASEEnd= timeit.default_timer()
-        pd.DataFrame.from_dict(data=ase_o_dict, orient='index').to_json("{0}/ase_o_dict{1}.json".format(self.outDir,self.chrom), orient="split")
+        # pd.DataFrame.from_dict(data=ase_o_dict, orient='index').to_json("{0}/ase_o_dict_{1}_{2}.json".format(self.outDir,self.chrom,self.sampleName), orient="split")
         print("ase_o_dict len: {0}".format(str(len(ase_o_dict))))
         print("time for Get Observed ASE: {0}".format(str(getObservedASEEnd - getObservedASEStart)))
         
@@ -388,7 +413,7 @@ class ase_simpler():
             ase_b = self.getSimulatedASE(ref_alt_dict[chrom], p, trials)
             ase_b_dict[chrom] = ase_b
         getSimulatedASEEnd = timeit.default_timer()
-        pd.DataFrame.from_dict(data=ase_b_dict, orient='index').to_json("{0}/ase_b_dict{1}.json".format(self.outDir,self.chrom), orient="split")
+        # pd.DataFrame.from_dict(data=ase_b_dict, orient='index').to_json("{0}/ase_b_dict_{1}_{2}.json".format(self.outDir,self.chrom, self.sampleName), orient="split")
         print("ase_b_dict len: {0}".format(str(len(ase_b_dict))))
         print("time for Get Simulated ASE: {0}".format(str(getSimulatedASEEnd - getSimulatedASEStart)))
 
@@ -398,7 +423,7 @@ class ase_simpler():
         pVals = {}
         for chrom in peakLocs.keys():
             pVals[chrom] = self.getPVals(trials, p, ref_alt_dict[chrom], ase_b_dict[chrom], ase_o_dict[chrom], chrom)
-        pd.DataFrame.from_dict(data=pVals, orient='index').to_json("{0}/p_values{1}.json".format(self.outDir,self.chrom), orient="split")
+        pd.DataFrame.from_dict(data=pVals, orient='index').to_json("{0}/p_values/p_values_{1}_{2}.json".format(self.outDir,self.chrom, self.sampleName), orient="split")
         getPValuesEnd = timeit.default_timer()
         print("pVals shape: {0}".format(len(pVals)))
         print("time for Get P Values: {0}".format(str(getPValuesEnd - getPValuesStart)))
